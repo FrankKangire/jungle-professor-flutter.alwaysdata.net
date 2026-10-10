@@ -1,0 +1,88 @@
+-- ============================================
+-- JUNGLE PROFESSOR - FULL DATABASE SETUP
+-- Run this when deploying to any hosting platform
+-- ============================================
+
+CREATE DATABASE IF NOT EXISTS website_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE website_db;
+
+-- ============================================
+-- TABLE 1: users
+-- Used by: website (connection.php) and 
+--          Flutter app (db_connect.php)
+-- ============================================
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- TABLE 2: permanent_results
+-- Used by: website (view_history.php, save_game_results.php)
+--          Flutter app (save_results.php, get_results.php, 
+--                       get_single_result.php)
+-- Each row = one answered question in a game session
+-- Sessions are grouped by user_id + game_date
+-- ============================================
+CREATE TABLE IF NOT EXISTS permanent_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    player VARCHAR(10) NOT NULL DEFAULT 'p1',
+    game_type ENUM('jungle', 'city') NOT NULL,
+    question_text VARCHAR(500) NOT NULL,
+    user_answer VARCHAR(255) NOT NULL,
+    correct_answer VARCHAR(255) NOT NULL,
+    is_correct TINYINT(1) NOT NULL DEFAULT 0,
+    game_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- TABLE 3: game_results
+-- Used by: Flutter app (save_results.php)
+-- Stores full JSON blob of a game session
+-- Kept separate from permanent_results for 
+-- flexibility — both tables are populated
+-- ============================================
+CREATE TABLE IF NOT EXISTS game_results (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    game_type ENUM('jungle', 'city') NOT NULL,
+    results_data LONGTEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- TABLE 4: documents
+-- Used by: website (welcome.php, upload_logic.php)
+-- Stores uploaded files per user
+-- ============================================
+CREATE TABLE IF NOT EXISTS documents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    document_name VARCHAR(255) NOT NULL,
+    document_path VARCHAR(500) NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================
+-- INDEXES for performance
+-- ============================================
+CREATE INDEX idx_permanent_results_user 
+    ON permanent_results(user_id, game_date);
+CREATE INDEX idx_permanent_results_gametype 
+    ON permanent_results(game_type);
+CREATE INDEX idx_game_results_user 
+    ON game_results(user_id);
+CREATE INDEX idx_documents_user 
+    ON documents(user_id);
